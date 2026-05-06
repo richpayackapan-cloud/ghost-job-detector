@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ghost Job Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --border2: #3a3a4f;
+    --text: #e8e8f0;
+    --text2: #888899;
+    --text3: #555566;
+    --accent: #7c6dfa;
+    --accent2: #5a4de0;
+    --red: #ff4d6d;
+    --red-bg: #2a0f16;
+    --red-border: #5a1a28;
+    --amber: #f59e0b;
+    --amber-bg: #1f1500;
+    --amber-border: #3d2a00;
+    --green: #34d399;
+    --green-bg: #001f14;
+    --green-border: #003d28;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: var(--sans); }
+  body { min-height: 100vh; }
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; }
+  .main { margin-left: 220px; padding: 2.5rem; max-width: 900px; }
+  .logo { display: flex; flex-direction: column; gap: 4px; }
+  .logo-mark { font-size: 11px; font-family: var(--mono); color: var(--accent); letter-spacing: .15em; text-transform: uppercase; }
+  .logo-name { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.02em; }
+  nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-label { font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; transition: all .15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
+  .nav-badge { margin-left: auto; font-size: 10px; font-family: var(--mono); background: var(--accent); color: white; padding: 1px 6px; border-radius: 100px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .page-head { margin-bottom: 2rem; }
+  .page-title { font-size: 24px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 4px; }
+  .page-sub { font-size: 14px; color: var(--text2); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 12px; }
+  .card-label { font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 11px; font-family: var(--mono); color: var(--text2); margin-bottom: 6px; letter-spacing: .05em; }
+  .field input, .field select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: var(--sans); color: var(--text); outline: none; transition: border-color .15s; }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--text3); }
+  .field select option { background: var(--surface2); }
+  .field input.mono-input { font-family: var(--mono); font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .btn { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: var(--sans); cursor: pointer; border: none; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: white; width: 100%; padding: 12px; font-size: 14px; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border); width: 100%; margin-top: 8px; }
+  .btn-outline:hover { border-color: var(--border2); color: var(--text); }
+  .status-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); padding: 10px 0; min-height: 40px; }
+  .status-line.err { color: var(--red); }
+  .status-line.ok { color: var(--green); }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pipeline { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 16px; }
+  .pipeline-steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ps { font-size: 11px; font-family: var(--mono); padding: 4px 12px; border-radius: 100px; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); transition: all .3s; }
+  .ps.active { background: rgba(124,109,250,.15); color: var(--accent); border-color: var(--accent); }
+  .ps.done { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .ps.error { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+  .log-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface2); border-radius: 8px; margin-bottom: 6px; font-size: 12px; border: 1px solid var(--border); }
+  .log-title { flex: 1; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-co { color: var(--text2); flex-shrink: 0; font-size: 11px; }
+  .log-badge { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 100px; flex-shrink: 0; }
+  .lb-fetch { background: rgba(52,211,153,.1); color: var(--green); }
+  .lb-analyze { background: rgba(124,109,250,.1); color: var(--accent); }
+  .lb-done { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .lb-error { background: var(--red-bg); color: var(--red); }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .metric-label { font-size: 10px; font-family: var(--mono); color: var(--text3); margin-bottom: 6px; letter-spacing: .08em; text-transform: uppercase; }
+  .metric-val { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
+  .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 12px; position: relative; overflow: hidden; }
+  .result-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .result-card.ghost::before { background: var(--red); }
+  .result-card.uncertain::before { background: var(--amber); }
+  .result-card.legit::before { background: var(--green); }
+  .rc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .rc-title { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+  .rc-meta { font-size: 12px; color: var(--text2); margin-top: 3px; font-family: var(--mono); }
+  .flag-pill { font-size: 11px; font-family: var(--mono); padding: 4px 12px; border-radius: 100px; font-weight: 500; white-space: nowrap; flex-shrink: 0; margin-left: 12px; }
+  .fp-ghost { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .fp-uncertain { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .fp-legit { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .sc-label { font-size: 11px; font-family: var(--mono); color: var(--text3); width: 110px; flex-shrink: 0; }
+  .sc-bar { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .sc-fill { height: 100%; border-radius: 2px; }
+  .sc-num { font-size: 11px; font-family: var(--mono); width: 26px; text-align: right; color: var(--text2); }
+  .flags-wrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .flags-label { font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+  .flag-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .flag-tag { font-size: 11px; font-family: var(--mono); padding: 3px 10px; border-radius: 6px; background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .summary { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .card-foot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .foot-tag { font-size: 11px; font-family: var(--mono); padding: 3px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text3); }
+  .foot-link { font-size: 11px; font-family: var(--mono); color: var(--accent); margin-left: auto; text-decoration: none; }
+  .code-wrap { background: #0d0d14; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 10px 0; }
+  .code-wrap pre { font-family: var(--mono); font-size: 11px; color: #a8a8c0; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
+  .copy-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .copy-label { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+  .copy-btn { font-size: 11px; font-family: var(--mono); padding: 4px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); cursor: pointer; }
+  .copy-btn:hover { color: var(--text); }
+  .field-map { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .field-map th { text-align: left; font-size: 10px; font-family: var(--mono); color: var(--text3); padding: 8px 10px; border-bottom: 1px solid var(--border); letter-spacing: .08em; text-transform: uppercase; }
+  .field-map td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .field-map td:first-child { font-family: var(--mono); font-size: 11px; color: var(--accent); width: 50px; }
+  .field-map td:nth-child(2) { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .empty { text-align: center; padding: 4rem 2rem; color: var(--text3); font-size: 14px; font-family: var(--mono); }
+  .conn-ok { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: var(--mono); color: var(--green); margin-top: 10px; display: none; }
+  .info-box { background: rgba(124,109,250,.08); border: 1px solid rgba(124,109,250,.25); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: var(--mono); color: var(--accent); margin-bottom: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">v2.0</div>
+      <div class="logo-name">Ghost Job<br>Detector</div>
+    </div>
+    <nav>
+      <div class="nav-label">Pipeline</div>
+      <button class="nav-item active" onclick="switchTab('settings')" id="nav-settings"><span class="icon">⚙</span> Settings</button>
+      <button class="nav-item" onclick="switchTab('run')" id="nav-run"><span class="icon">▶</span> Run</button>
+      <button class="nav-item" onclick="switchTab('results')" id="nav-results"><span class="icon">◈</span> Results <span class="nav-badge" id="nbadge" style="display:none">0</span></button>
+      <button class="nav-item" onclick="switchTab('export')" id="nav-export"><span class="icon">↗</span> Export</button>
+    </nav>
+    <div style="margin-top:auto;font-size:10px;font-family:var(--mono);color:var(--text3);line-height:1.7">Powered by<br>Fresh LinkedIn Scraper<br>+ Claude AI</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- SETTINGS -->
+    <div class="panel active" id="panel-settings">
+      <div class="page-head">
+        <div class="page-title">Settings</div>
+        <div class="page-sub">Configure your proxy and API credentials</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Credentials</div>
+        <div class="info-box">All API calls route through your Cloudflare Worker — your keys never leave your machine to any third party.</div>
+        <div class="field">
+          <label>Cloudflare Worker URL</label>
+          <input id="s_proxy" class="mono-input" value="https://linkedin-job-proxy.rich-payackapan.workers.dev" placeholder="https://your-worker.workers.dev"/>
+        </div>
+        <div class="field">
+          <label>RapidAPI Key (LinkedIn)</label>
+          <input id="s_apikey" class="mono-input" type="text" placeholder="Your RapidAPI key for Fresh LinkedIn Scraper"/>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Anthropic API Key (Claude AI)</label>
+          <input id="s_anthropic" class="mono-input" type="text" placeholder="sk-ant-..."/>
+        </div>
+        <div id="connOk" class="conn-ok">✓ Connected — proxy is working correctly</div>
+        <div class="status-line" id="settingsStatus"></div>
+        <button class="btn btn-outline" onclick="testProxy()">Test proxy connection</button>
+      </div>
+      <div class="card">
+        <div class="card-label">Search Parameters</div>
+        <div class="grid2" style="margin-bottom:14px">
+          <div class="field" style="margin-bottom:0"><label>Keyword</label><input id="s_keyword" value="product manager"/></div>
+          <div class="field" style="margin-bottom:0"><label>Results</label>
+            <select id="s_count">
+              <option value="3">3 jobs</option>
+              <option value="5" selected>5 jobs</option>
+              <option value="10">10 jobs</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field" style="margin-bottom:0"><label>Date Posted</label>
+            <select id="s_date">
+              <option value="past_24hours">Past 24h</option>
+              <option value="past_week" selected>Past week</option>
+              <option value="past_month">Past month</option>
+              <option value="any_time">Any time</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0"><label>Remote</label>
+            <select id="s_remote">
+              <option value="">Any</option>
+              <option value="remote">Remote</option>
+              <option value="on_site">On-site</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0"><label>Sort By</label>
+            <select id="s_sort">
+              <option value="recent" selected>Recent</option>
+              <option value="relevant">Relevant</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveAndRun()">Save &amp; Run Pipeline →</button>
+    </div>
+
+    <!-- RUN -->
+    <div class="panel" id="panel-run">
+      <div class="page-head">
+        <div class="page-title">Run Pipeline</div>
+        <div class="page-sub">Fetch → Enrich → Analyze → Complete</div>
+      </div>
+      <div class="pipeline">
+        <div class="pipeline-steps">
+          <div class="ps" id="ps1">1 · Fetch job list</div>
+          <div class="ps" id="ps2">2 · Enrich details</div>
+          <div class="ps" id="ps3">3 · AI analysis</div>
+          <div class="ps" id="ps4">4 · Complete</div>
+        </div>
+        <div class="status-line" id="runStatus"></div>
+      </div>
+      <div id="runLog" style="margin-bottom:14px"></div>
+      <button class="btn btn-primary" id="runBtn" onclick="runPipeline()">Run Pipeline</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="panel" id="panel-results">
+      <div class="page-head">
+        <div class="page-title">Results</div>
+        <div class="page-sub">Ghost job analysis from live LinkedIn data</div>
+      </div>
+      <div id="resultsContent"><div class="empty">// run pipeline to see results</div></div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="panel" id="panel-export">
+      <div class="page-head">
+        <div class="page-title">Export</div>
+        <div class="page-sub">Google Sheets Apps Script + field mapping</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Google Sheets — Apps Script</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Open your Google Sheet → Extensions → Apps Script → paste → Run → <code style="font-family:var(--mono);font-size:11px;color:var(--accent)">importGhostJobs</code></p>
+        <div class="copy-row">
+          <span class="copy-label">auto-generated from results</span>
+          <button class="copy-btn" onclick="copyScript()">copy</button>
+        </div>
+        <div class="code-wrap"><pre id="scriptPre">// run pipeline first to generate export script</pre></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Zapier Table Field Mapping (f1–f11)</div>
+        <table class="field-map">
+          <thead><tr><th>Field</th><th>Key</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td>f1</td><td>jobtitle</td><td>LinkedIn search + detail API</td></tr>
+            <tr><td>f2</td><td>company</td><td>LinkedIn search + detail API</td></tr>
+            <tr><td>f3</td><td>jobdescription</td><td>Job detail API</td></tr>
+            <tr><td>f4</td><td>salaryrange</td><td>Job detail API</td></tr>
+            <tr><td>f5</td><td>hiringmanageremail</td><td>Not exposed by LinkedIn</td></tr>
+            <tr><td>f6</td><td>applicationlink</td><td>job_url from search API</td></tr>
+            <tr><td>f7</td><td>postingdate</td><td>listed_at from detail API</td></tr>
+            <tr><td>f8</td><td>lastseendate</td><td>expire_at from detail API</td></tr>
+            <tr><td>f9</td><td>repostingcount</td><td>applies count from detail API</td></tr>
+            <tr><td>f10</td><td>ghostjobflag</td><td>Claude AI analysis output</td></tr>
+            <tr><td>f11</td><td>analysis</td><td>Score + red flags + summary</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let results = [];
+let isRunning = false;
+
+const g = id => (document.getElementById(id).value || '').trim();
+
+function buildUrl(endpoint, extra) {
+  const proxy = g('s_proxy').replace(/\/+$/, '');
+  const key = g('s_apikey');
+  return `${proxy}/?endpoint=${endpoint}&apikey=${encodeURIComponent(key)}${extra || ''}`;
+}
+
+function buildAiUrl() {
+  const proxy = g('s_proxy').replace(/\/+$/, '');
+  const anthropicKey = g('s_anthropic');
+  return `${proxy}/?endpoint=ai&anthropic_key=${encodeURIComponent(anthropicKey)}`;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'export') updateScript();
+  if (name === 'results') renderResults();
+}
+
+function setSt(id, html, type) {
+  const el = document.getElementById(id);
+  el.innerHTML = html || '';
+  el.className = 'status-line' + (type === 'err' ? ' err' : type === 'ok' ? ' ok' : '');
+}
+
+function setStep(n, state) { document.getElementById('ps' + n).className = 'ps ' + state; }
+
+async function testProxy() {
+  const proxy = g('s_proxy'), key = g('s_apikey');
+  if (!proxy) { setSt('settingsStatus', 'Enter Worker URL first.', 'err'); return; }
+  if (!key) { setSt('settingsStatus', 'Enter RapidAPI key first.', 'err'); return; }
+  setSt('settingsStatus', '<span class="spinner"></span>Testing connection...');
+  try {
+    const url = buildUrl('search', '&keyword=product+manager&page=1&sort_by=recent&date_posted=past_week');
+    const res = await fetch(url);
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('Non-JSON: ' + text.slice(0, 80)); }
+    if (data.error) throw new Error(data.error);
+    const count = (data.data || data.jobs || data || []).length;
+    const bar = document.getElementById('connOk');
+    bar.textContent = `✓ Connected — ${count} jobs returned. Ready to run.`;
+    bar.style.display = 'block';
+    setSt('settingsStatus', '');
+  } catch(e) {
+    setSt('settingsStatus', 'Failed: ' + e.message, 'err');
+  }
+}
+
+function saveAndRun() {
+  if (!g('s_proxy')) { setSt('settingsStatus', 'Enter Worker URL.', 'err'); return; }
+  if (!g('s_apikey')) { setSt('settingsStatus', 'Enter RapidAPI key.', 'err'); return; }
+  if (!g('s_anthropic')) { setSt('settingsStatus', 'Enter your Anthropic API key.', 'err'); return; }
+  switchTab('run');
+  runPipeline();
+}
+
+function barColor(s) { return s >= 60 ? '#ff4d6d' : s >= 35 ? '#f59e0b' : '#34d399'; }
+function flagClass(f) { return f === 'Likely Ghost Job' ? 'ghost' : f === 'Uncertain' ? 'uncertain' : 'legit'; }
+function pillClass(f) { return f === 'Likely Ghost Job' ? 'fp-ghost' : f === 'Uncertain' ? 'fp-uncertain' : 'fp-legit'; }
+
+async function callClaude(prompt) {
+  const aiUrl = buildAiUrl();
+  const res = await fetch(aiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(JSON.stringify(data.error));
+  const raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+  return JSON.parse(raw);
+}
+
+async function runPipeline() {
+  if (isRunning) return;
+  const proxy = g('s_proxy'), key = g('s_apikey'), anthropicKey = g('s_anthropic');
+  const keyword = g('s_keyword') || 'product manager';
+  const count = parseInt(document.getElementById('s_count').value) || 5;
+  const date = g('s_date') || 'past_week';
+  const remote = g('s_remote');
+  const sort = g('s_sort') || 'recent';
+
+  if (!proxy) { setSt('runStatus', 'Enter Worker URL in Settings.', 'err'); return; }
+  if (!key) { setSt('runStatus', 'Enter RapidAPI key in Settings.', 'err'); return; }
+  if (!anthropicKey) { setSt('runStatus', 'Enter Anthropic API key in Settings.', 'err'); return; }
+
+  isRunning = true;
+  results = [];
+  document.getElementById('runLog').innerHTML = '';
+  document.getElementById('runBtn').disabled = true;
+  ['ps1','ps2','ps3','ps4'].forEach(id => document.getElementById(id).className = 'ps');
+
+  try {
+    // STEP 1: Search
+    setStep(1, 'active');
+    setSt('runStatus', '<span class="spinner"></span>Fetching job listings from LinkedIn...');
+    let extra = `&keyword=${encodeURIComponent(keyword)}&page=1&sort_by=${sort}&date_posted=${date}`;
+    if (remote) extra += `&remote=${remote}`;
+    const sRes = await fetch(buildUrl('search', extra));
+    const sText = await sRes.text();
+    let sData; try { sData = JSON.parse(sText); } catch(e) { throw new Error('Non-JSON from search: ' + sText.slice(0,100)); }
+    if (sData.error) throw new Error('API error: ' + sData.error);
+    const jobs = (sData.data || sData.jobs || []).slice(0, count);
+    if (!jobs.length) throw new Error('No jobs returned. Try a different keyword or date range.');
+    setStep(1, 'done');
+
+    // STEP 2: Enrich — API first, then scrape fallback for missing salary/description
+    setStep(2, 'active');
+    setSt('runStatus', `<span class="spinner"></span>Enriching ${jobs.length} listings with full details...`);
+    const enriched = [];
+    for (const job of jobs) {
+      const jobId = job.id || job.job_id;
+      const title = job.title || job.jobtitle || 'Unknown role';
+      const company = job.company?.name || job.company || 'Unknown company';
+      const li = document.createElement('div');
+      li.className = 'log-item';
+      li.innerHTML = `<span class="log-title">${title}</span><span class="log-co">${company}</span><span class="log-badge lb-fetch">fetching</span>`;
+      document.getElementById('runLog').appendChild(li);
+
+      let jobData = { jobtitle: title, company, postingdate: '', lastseendate: '', repostingcount: 0, salaryrange: '', hiringmanageremail: '', applicationlink: job.job_url || '', joblevel: '', jobtype: '', skillsrequired: '', companysize: '', location: '', jobdescription: '', _jobId: jobId };
+
+      // 2a: RapidAPI detail call
+      try {
+        const dRes = await fetch(buildUrl('detail', `&job_id=${jobId}`));
+        const dText = await dRes.text();
+        let d; try { d = JSON.parse(dText); } catch(e) { d = {}; }
+        const det = d.data || d;
+        const sal = det.salary;
+        let salStr = '';
+        if (sal && sal.salary_exists && sal.min_salary && sal.max_salary) {
+          salStr = `$${Math.round(sal.min_salary).toLocaleString()}–$${Math.round(sal.max_salary).toLocaleString()}${sal.pay_period ? ' ' + sal.pay_period : ''}`;
+        }
+        jobData = {
+          jobtitle: det.title || title, company: det.company?.name || company,
+          postingdate: det.listed_at || det.original_listed_at || '',
+          lastseendate: det.expire_at || '', repostingcount: det.applies || det.apply_count || 0,
+          salaryrange: salStr, hiringmanageremail: '',
+          applicationlink: det.job_url || job.job_url || '',
+          joblevel: det.level || '', jobtype: det.employment_status || '',
+          skillsrequired: (det.skills || []).join(', '),
+          companysize: det.company?.company_size || '',
+          location: det.location || job.location || '',
+          jobdescription: det.description || '', _jobId: jobId
+        };
+        li.querySelector('.log-badge').className = 'log-badge lb-done';
+        li.querySelector('.log-badge').textContent = 'api ✓';
+      } catch(e) {
+        li.querySelector('.log-badge').className = 'log-badge lb-error';
+        li.querySelector('.log-badge').textContent = 'api failed';
+      }
+
+      // 2b: Scrape fallback — if salary or description missing, fetch LinkedIn page directly
+      const needsSalary = !jobData.salaryrange;
+      const needsDescription = !jobData.jobdescription || jobData.jobdescription.length < 200;
+      if (needsSalary || needsDescription) {
+        li.querySelector('.log-badge').className = 'log-badge lb-analyze';
+        li.querySelector('.log-badge').textContent = 'scraping…';
+        try {
+          const proxy = g('s_proxy').replace(/\/+$/, '');
+          const scrapeRes = await fetch(`${proxy}/?endpoint=scrape&job_id=${jobId}`);
+          const scrapeData = await scrapeRes.json();
+          if (needsSalary && scrapeData.salary_scraped) {
+            jobData.salaryrange = scrapeData.salary_scraped;
+          }
+          if (needsDescription && scrapeData.description_scraped && scrapeData.description_scraped.length > jobData.jobdescription.length) {
+            jobData.jobdescription = scrapeData.description_scraped;
+          }
+          const gotSalary = !!jobData.salaryrange;
+          const gotDesc = jobData.jobdescription.length > 200;
+          li.querySelector('.log-badge').className = 'log-badge lb-done';
+          li.querySelector('.log-badge').textContent = `enriched${gotSalary ? ' + $' : ''}${gotDesc ? ' + desc' : ''}`;
+        } catch(e) {
+          li.querySelector('.log-badge').className = 'log-badge lb-done';
+          li.querySelector('.log-badge').textContent = 'partial';
+        }
+      } else {
+        li.querySelector('.log-badge').className = 'log-badge lb-done';
+        li.querySelector('.log-badge').textContent = 'enriched';
+      }
+
+      enriched.push(jobData);
+    }
+    setStep(2, 'done');
+
+    // STEP 3: AI Analysis via Worker proxy
+    setStep(3, 'active');
+    setSt('runStatus', `<span class="spinner"></span>Running Claude AI analysis on ${enriched.length} jobs...`);
+    for (const job of enriched) {
+      const prompt = `Analyze this LinkedIn job posting for ghost job indicators using weighted scoring:
+
+HIGH-PROBABILITY (25-30 pts each):
+- Posted 90+ days ago: 30 pts
+- Missing salary entirely: 25 pts
+- Reposted 3+ times: 25 pts
+
+HIGH SUSPICION (20 pts each):
+- Generic/vague description with no specifics: 20 pts
+- No contact info or hiring manager: 20 pts
+
+WARNING (10 pts each):
+- "Competitive salary" with no range: 10 pts
+- No direct contact methods: 10 pts
+
+Job:
+Title: ${job.jobtitle}
+Company: ${job.company}
+Posted: ${job.postingdate || 'unknown'}
+Expires: ${job.lastseendate || 'unknown'}
+Applies/Reposts: ${job.repostingcount}
+Salary: ${job.salaryrange || 'NOT PROVIDED'}
+Contact: ${job.hiringmanageremail || 'NOT PROVIDED'}
+Location: ${job.location || 'unknown'}
+Level: ${job.joblevel || 'unknown'}
+Type: ${job.jobtype || 'unknown'}
+Description: ${(job.jobdescription || '').slice(0, 1500)}
+
+Return ONLY valid JSON, no markdown:
+{"suspicion_score":<0-100>,"ghost_job_flag":"<Active Position|Uncertain|Likely Ghost Job>","red_flags":"<comma-separated>","analysis_summary":"<one sentence>","score_breakdown":{"age_score":<0-30>,"salary_score":<0-25>,"repost_score":<0-25>,"description_score":<0-20>,"contact_score":<0-20>}}`;
+
+      try {
+        const ai = await callClaude(prompt);
+        results.push({ ...job, ...ai, analyzed_at: new Date().toLocaleString() });
+      } catch(e) {
+        results.push({ ...job, suspicion_score: 0, ghost_job_flag: 'Uncertain', red_flags: 'Analysis failed: ' + e.message, analysis_summary: 'Could not analyze.', score_breakdown: {}, analyzed_at: new Date().toLocaleString() });
+      }
+    }
+
+    setStep(3, 'done');
+    setStep(4, 'done');
+    setSt('runStatus', `✓ Pipeline complete — ${results.length} jobs analyzed.`, 'ok');
+    const nb = document.getElementById('nbadge');
+    nb.textContent = results.length;
+    nb.style.display = 'inline';
+    updateScript();
+    setTimeout(() => switchTab('results'), 700);
+
+  } catch(e) {
+    setSt('runStatus', e.message || 'Pipeline failed. Check Settings and try again.', 'err');
+    ['ps1','ps2','ps3'].forEach(id => {
+      if (document.getElementById(id).classList.contains('active'))
+        document.getElementById(id).className = 'ps error';
+    });
+  } finally {
+    isRunning = false;
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+function renderResults() {
+  if (!results.length) { document.getElementById('resultsContent').innerHTML = '<div class="empty">// run pipeline to see results</div>'; return; }
+  const ghosts = results.filter(r => r.ghost_job_flag === 'Likely Ghost Job').length;
+  const uncertain = results.filter(r => r.ghost_job_flag === 'Uncertain').length;
+  const avg = Math.round(results.reduce((a, r) => a + (r.suspicion_score || 0), 0) / results.length);
+
+  const cards = results.map(r => {
+    const sb = r.score_breakdown || {};
+    const flags = (r.red_flags || '').split(',').map(f => f.trim()).filter(Boolean);
+    return `<div class="result-card ${flagClass(r.ghost_job_flag)}">
+      <div class="rc-head">
+        <div><div class="rc-title">${r.jobtitle}</div>
+        <div class="rc-meta">${r.company || '—'}${r.location ? ' · ' + r.location : ''}${r.joblevel ? ' · ' + r.joblevel : ''}</div></div>
+        <span class="flag-pill ${pillClass(r.ghost_job_flag)}">${r.ghost_job_flag}</span>
+      </div>
+      <div class="score-row"><span class="sc-label">suspicion</span><div class="sc-bar"><div class="sc-fill" style="width:${r.suspicion_score}%;background:${barColor(r.suspicion_score)}"></div></div><span class="sc-num">${r.suspicion_score}</span></div>
+      ${sb.age_score !== undefined ? `<div class="score-row"><span class="sc-label">age_risk</span><div class="sc-bar"><div class="sc-fill" style="width:${Math.min((sb.age_score/30)*100,100)}%;background:${sb.age_score>=20?'var(--red)':'var(--green)'}"></div></div><span class="sc-num">${sb.age_score}</span></div>` : ''}
+      ${sb.salary_score !== undefined ? `<div class="score-row"><span class="sc-label">salary_miss</span><div class="sc-bar"><div class="sc-fill" style="width:${Math.min((sb.salary_score/25)*100,100)}%;background:${sb.salary_score>=20?'var(--red)':'var(--amber)'}"></div></div><span class="sc-num">${sb.salary_score}</span></div>` : ''}
+      ${sb.repost_score !== undefined ? `<div class="score-row"><span class="sc-label">repost_risk</span><div class="sc-bar"><div class="sc-fill" style="width:${Math.min((sb.repost_score/25)*100,100)}%;background:${sb.repost_score>=20?'var(--red)':'var(--green)'}"></div></div><span class="sc-num">${sb.repost_score}</span></div>` : ''}
+      ${sb.description_score !== undefined ? `<div class="score-row"><span class="sc-label">vagueness</span><div class="sc-bar"><div class="sc-fill" style="width:${Math.min((sb.description_score/20)*100,100)}%;background:${sb.description_score>=15?'var(--red)':'var(--green)'}"></div></div><span class="sc-num">${sb.description_score}</span></div>` : ''}
+      ${flags.length || r.analysis_summary ? `<div class="flags-wrap">
+        ${flags.length ? `<div class="flags-label">Red flags</div><div class="flag-tags">${flags.map(f => `<span class="flag-tag">${f}</span>`).join('')}</div>` : ''}
+        ${r.analysis_summary ? `<div class="summary">${r.analysis_summary}</div>` : ''}
+      </div>` : ''}
+      <div class="card-foot">
+        ${r.salaryrange ? `<span class="foot-tag">${r.salaryrange}</span>` : `<span class="foot-tag" style="color:var(--red)">no salary listed</span>`}
+        ${r.jobtype ? `<span class="foot-tag">${r.jobtype}</span>` : ''}
+        ${r.applicationlink ? `<a href="${r.applicationlink}" target="_blank" class="foot-link">view on linkedin ↗</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsContent').innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Analyzed</div><div class="metric-val">${results.length}</div></div>
+      <div class="metric"><div class="metric-label">Ghost / Suspect</div><div class="metric-val" style="color:var(--red)">${ghosts}</div></div>
+      <div class="metric"><div class="metric-label">Uncertain</div><div class="metric-val" style="color:var(--amber)">${uncertain}</div></div>
+      <div class="metric"><div class="metric-label">Avg Score</div><div class="metric-val">${avg}</div></div>
+    </div>${cards}`;
+}
+
+function updateScript() {
+  if (!results.length) return;
+  const rows = results.map(r => ([
+    r.jobtitle||'', r.company||'', r.jobdescription||'', r.salaryrange||'',
+    r.hiringmanageremail||'', r.applicationlink||'', r.postingdate||'',
+    r.lastseendate||'', String(r.repostingcount||0), r.ghost_job_flag||'',
+    `Score: ${r.suspicion_score}/100 | Flags: ${r.red_flags||'none'} | ${r.analysis_summary||''}`
+  ]));
+  document.getElementById('scriptPre').textContent =
+`// Ghost Job Detection — Google Sheets Import
+// Generated: ${new Date().toLocaleString()}
+function importGhostJobs() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const headers = [
+    "f1: jobtitle","f2: company","f3: jobdescription","f4: salaryrange",
+    "f5: hiringmanageremail","f6: applicationlink","f7: postingdate",
+    "f8: lastseendate","f9: repostingcount","f10: ghostjobflag","f11: analysis"
+  ];
+  const data = ${JSON.stringify(rows, null, 2)};
+  sheet.clearContents();
+  sheet.appendRow(headers);
+  data.forEach(row => sheet.appendRow(row));
+  const hr = sheet.getRange(1, 1, 1, headers.length);
+  hr.setFontWeight("bold");
+  hr.setBackground("#f3f4f6");
+  sheet.autoResizeColumns(1, headers.length);
+  SpreadsheetApp.getUi().alert("Done! " + data.length + " job(s) imported.");
+}`;
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(document.getElementById('scriptPre').textContent).then(() => {
+    const btn = event.target; btn.textContent = 'copied!';
+    setTimeout(() => btn.textContent = 'copy', 1800);
+  });
+}
+</script>
+</body>
+</html>
