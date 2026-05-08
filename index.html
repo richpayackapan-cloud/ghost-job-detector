@@ -129,6 +129,14 @@
   .field-map td:nth-child(2) { font-family: var(--mono); font-size: 11px; color: var(--text2); }
   .empty { text-align: center; padding: 4rem 2rem; color: var(--text3); font-size: 14px; font-family: var(--mono); }
   .conn-ok { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: var(--mono); color: var(--green); margin-top: 10px; display: none; }
+
+  .demo-banner { background: linear-gradient(135deg, rgba(124,109,250,.15), rgba(124,109,250,.05)); border: 1px solid rgba(124,109,250,.35); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 16px; }
+  .demo-banner-text { flex: 1; }
+  .demo-banner-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .demo-banner-sub { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .btn-demo { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; font-family: var(--sans); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .15s; }
+  .btn-demo:hover { background: var(--accent2); }
+  .demo-mode-badge { display: none; background: rgba(124,109,250,.2); border: 1px solid rgba(124,109,250,.4); border-radius: 100px; padding: 3px 12px; font-size: 10px; font-family: var(--mono); color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; }
   .info-box { background: rgba(124,109,250,.08); border: 1px solid rgba(124,109,250,.25); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: var(--mono); color: var(--accent); margin-bottom: 14px; line-height: 1.6; }
 </style>
 </head>
@@ -156,6 +164,13 @@
       <div class="page-head">
         <div class="page-title">Settings</div>
         <div class="page-sub">Configure your proxy and API credentials</div>
+      </div>
+      <div class="demo-banner">
+        <div class="demo-banner-text">
+          <div class="demo-banner-title">👻 Try the live demo</div>
+          <div class="demo-banner-sub">No API keys needed — runs a full ghost job analysis on 5 realistic sample listings so you can see every feature in action.</div>
+        </div>
+        <button class="btn-demo" onclick="runDemo()">Run Demo →</button>
       </div>
       <div class="card">
         <div class="card-label">Credentials</div>
@@ -221,6 +236,7 @@
       <div class="page-head">
         <div class="page-title">Run Pipeline</div>
         <div class="page-sub">Fetch → Enrich → Analyze → Complete</div>
+      <div class="demo-mode-badge" id="demoBadge">Demo mode</div>
       </div>
       <div class="pipeline">
         <div class="pipeline-steps">
@@ -368,6 +384,169 @@ async function callClaude(prompt) {
   return JSON.parse(raw);
 }
 
+
+const DEMO_JOBS = [
+  {
+    jobtitle: "Senior Product Manager",
+    company: "TechVentures Inc.",
+    postingdate: "2024-09-10",
+    lastseendate: "2025-05-01",
+    repostingcount: 5,
+    salaryrange: "Competitive salary",
+    hiringmanageremail: "",
+    applicationlink: "https://linkedin.com/jobs/view/demo1",
+    joblevel: "Senior",
+    jobtype: "Full-time",
+    skillsrequired: "Agile, Product Strategy, Stakeholder Management",
+    companysize: "51–200 employees",
+    location: "Remote",
+    jobdescription: "We are looking for a highly motivated Senior Product Manager to join our dynamic team. You will be responsible for driving product strategy and working cross-functionally. The ideal candidate is passionate about technology and has a proven track record. Must have excellent communication skills. We offer competitive compensation and great growth opportunities. This is an exciting chance to make a real impact at a fast-growing company."
+  },
+  {
+    jobtitle: "Software Engineer II — Backend",
+    company: "Stripe",
+    postingdate: "2025-04-28",
+    lastseendate: "2025-05-20",
+    repostingcount: 0,
+    salaryrange: "$155,000–$185,000 per year",
+    hiringmanageremail: "eng-recruiting@stripe.com",
+    applicationlink: "https://linkedin.com/jobs/view/demo2",
+    joblevel: "Mid-level",
+    jobtype: "Full-time",
+    skillsrequired: "Go, Distributed Systems, PostgreSQL, gRPC, Kubernetes",
+    companysize: "5,000–10,000 employees",
+    location: "San Francisco, CA (Hybrid)",
+    jobdescription: "Stripe is hiring a Software Engineer II to join our Payments Infrastructure team. You'll own reliability and latency improvements for our core charge processing pipeline, which handles $1T+ in annual volume. In this role you will: design and ship distributed systems changes end-to-end, participate in on-call rotations (roughly 1 week per quarter), mentor junior engineers, and collaborate closely with product and data teams. We're looking for 3–5 years of backend experience, strong fundamentals in distributed systems, and a bias toward simplicity. Compensation: $155,000–$185,000 base + equity + benefits. Interview process: recruiter screen → technical phone screen → 4-hour virtual onsite."
+  },
+  {
+    jobtitle: "Director of Operations",
+    company: "Growth Solutions LLC",
+    postingdate: "2024-07-14",
+    lastseendate: "2025-05-01",
+    repostingcount: 7,
+    salaryrange: "",
+    hiringmanageremail: "",
+    applicationlink: "https://linkedin.com/jobs/view/demo3",
+    joblevel: "Director",
+    jobtype: "Full-time",
+    skillsrequired: "Leadership, Operations, Strategy",
+    companysize: "11–50 employees",
+    location: "New York, NY",
+    jobdescription: "We are seeking a Director of Operations to lead our operational teams. The successful candidate will oversee day-to-day operations and drive efficiency. You will work with various stakeholders to ensure company goals are met. Strong leadership and communication skills required. We offer a competitive benefits package and opportunities for advancement. If you are a results-driven professional looking to make a difference, we want to hear from you. Apply today to join our growing team."
+  },
+  {
+    jobtitle: "UX Designer",
+    company: "Figma",
+    postingdate: "2025-04-15",
+    lastseendate: "2025-06-01",
+    repostingcount: 0,
+    salaryrange: "$130,000–$160,000 per year",
+    hiringmanageremail: "design-recruiting@figma.com",
+    applicationlink: "https://linkedin.com/jobs/view/demo4",
+    joblevel: "Mid-level",
+    jobtype: "Full-time",
+    skillsrequired: "Figma, User Research, Prototyping, Design Systems, Accessibility",
+    companysize: "1,000–5,000 employees",
+    location: "San Francisco, CA or Remote",
+    jobdescription: "Figma is looking for a UX Designer to join our Core Editor team. You'll be working on the canvas experience used by 8M+ designers daily. Responsibilities include: conducting user research with professional designers, shipping interaction improvements to the editor toolbar and property panels, building and maintaining components in our internal design system, and collaborating with engineers on feasibility. We need someone with 3+ years of product design experience, a portfolio demonstrating end-to-end design process, and strong Figma proficiency (naturally). Salary range: $130,000–$160,000. We conduct portfolio reviews, a design exercise, and team interviews."
+  },
+  {
+    jobtitle: "Marketing Manager",
+    company: "Innovate Digital Corp",
+    postingdate: "2024-11-03",
+    lastseendate: "2025-05-01",
+    repostingcount: 4,
+    salaryrange: "Competitive pay based on experience",
+    hiringmanageremail: "",
+    applicationlink: "https://linkedin.com/jobs/view/demo5",
+    joblevel: "Manager",
+    jobtype: "Full-time",
+    skillsrequired: "Marketing, Strategy, Communications",
+    companysize: "201–500 employees",
+    location: "Austin, TX",
+    jobdescription: "We are looking for an experienced Marketing Manager to develop and execute our marketing strategy. The ideal candidate will have a passion for marketing and a track record of success. You will manage campaigns, oversee brand initiatives, and collaborate with the sales team. Excellent interpersonal and organizational skills are essential. This is a great opportunity for a motivated marketing professional to grow with our company. Competitive compensation offered. Please submit your resume and cover letter to be considered for this exciting role."
+  }
+];
+
+async function runDemo() {
+  switchTab('run');
+  document.getElementById('demoBadge').style.display = 'inline-block';
+
+  if (isRunning) return;
+  isRunning = true;
+  results = [];
+  document.getElementById('runLog').innerHTML = '';
+  document.getElementById('runBtn').disabled = true;
+  ['ps1','ps2','ps3','ps4'].forEach(id => document.getElementById(id).className = 'ps');
+
+  try {
+    setStep(1, 'active');
+    setSt('runStatus', '<span class="spinner"></span>Loading demo job listings...');
+    await new Promise(r => setTimeout(r, 800));
+    setStep(1, 'done');
+
+    setStep(2, 'active');
+    setSt('runStatus', '<span class="spinner"></span>Enriching demo listings with details...');
+    for (const job of DEMO_JOBS) {
+      const li = document.createElement('div');
+      li.className = 'log-item';
+      li.innerHTML = `<span class="log-title">${job.jobtitle}</span><span class="log-co">${job.company}</span><span class="log-badge lb-fetch">loaded</span>`;
+      document.getElementById('runLog').appendChild(li);
+      await new Promise(r => setTimeout(r, 200));
+      li.querySelector('.log-badge').className = 'log-badge lb-done';
+      li.querySelector('.log-badge').textContent = 'enriched';
+    }
+    setStep(2, 'done');
+
+    setStep(3, 'active');
+    setSt('runStatus', '<span class="spinner"></span>Running Claude AI ghost job analysis on 5 demo listings...');
+
+    // Use pre-computed demo results — no API key needed
+    const demoResults = [
+      { suspicion_score: 78, ghost_job_flag: 'Likely Ghost Job', red_flags: 'No salary range, vague description, 5 reposts, posted 8 months ago, no contact info', analysis_summary: 'This posting shows multiple high-probability ghost job indicators including extreme age, repeated reposting, missing salary, and a generic description with no specific team or product details.', score_breakdown: { age_score: 30, salary_score: 10, repost_score: 25, description_score: 20, contact_score: 20 } },
+      { suspicion_score: 8, ghost_job_flag: 'Active Position', red_flags: '', analysis_summary: 'This posting has all the hallmarks of a genuine active role — specific salary range, named recruiter contact, detailed technical requirements, and was posted very recently.', score_breakdown: { age_score: 0, salary_score: 0, repost_score: 0, description_score: 0, contact_score: 0 } },
+      { suspicion_score: 85, ghost_job_flag: 'Likely Ghost Job', red_flags: 'Posted 10 months ago, no salary, 7 reposts, generic description, no contact info', analysis_summary: 'Extremely high ghost job probability — posted nearly a year ago with 7 reposts, no salary, no contact details, and a template-style description that could apply to any company.', score_breakdown: { age_score: 30, salary_score: 25, repost_score: 25, description_score: 20, contact_score: 20 } },
+      { suspicion_score: 12, ghost_job_flag: 'Active Position', red_flags: '', analysis_summary: 'Strong indicators of a legitimate active position — recent posting, explicit salary band, named contact, specific product context, and a detailed interview process outlined.', score_breakdown: { age_score: 0, salary_score: 0, repost_score: 0, description_score: 0, contact_score: 0 } },
+      { suspicion_score: 62, ghost_job_flag: 'Uncertain', red_flags: 'No specific salary range, vague description, posted 6 months ago, 4 reposts, no contact info', analysis_summary: 'Several warning signs present — posted 6 months ago with 4 reposts and no real salary figure — but the company size and location are specific enough to leave some doubt.', score_breakdown: { age_score: 20, salary_score: 10, repost_score: 25, description_score: 10, contact_score: 20 } }
+    ];
+
+    for (let i = 0; i < DEMO_JOBS.length; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      results.push({ ...DEMO_JOBS[i], ...demoResults[i], analyzed_at: new Date().toLocaleString() + ' (demo)' });
+    }
+
+    setStep(3, 'done');
+    setStep(4, 'done');
+    setSt('runStatus', '✓ Demo complete — 5 sample jobs analyzed. Results show a mix of ghost, uncertain, and legitimate postings.', 'ok');
+    const nb = document.getElementById('nbadge');
+    nb.textContent = results.length;
+    nb.style.display = 'inline';
+    updateScript();
+    setTimeout(() => switchTab('results'), 700);
+  } catch(e) {
+    setSt('runStatus', 'Demo failed: ' + e.message, 'err');
+  } finally {
+    isRunning = false;
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+function extractSalaryFromText(text) {
+  if (!text) return '';
+  const patterns = [
+    /\$[\d,]+(?:\.\d+)?[kK]?\s*(?:[-\u2013\u2014]|to)\s*\$[\d,]+(?:\.\d+)?[kK]?(?:\s*(?:per\s+)?(?:year|yr|hour|hr|month|mo|week|wk|annually|\/yr|\/hr))?/gi,
+    /(?:USD|CAD|GBP|EUR)\s*[\d,]+(?:\.\d+)?\s*[-\u2013\u2014]\s*[\d,]+(?:\.\d+)?/gi,
+    /[\d,]+(?:\.\d+)?\s*[-\u2013\u2014]\s*[\d,]+(?:\.\d+)?\s*(?:USD|CAD|a\s+year|per\s+year|\/yr|annually)/gi,
+    /(?:pay|salary|compensation|wage|rate)\s*(?:range|:)?\s*\$[\d,]+[kK]?\s*(?:[-\u2013\u2014]|to)\s*\$[\d,]+[kK]?/gi,
+    /\$[\d,]+(?:\.\d+)?[kK]?\s*(?:\/|\bper\b)\s*(?:year|yr|hour|hr|month|mo)/gi,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[0]) return match[0].trim();
+  }
+  return '';
+}
+
 async function runPipeline() {
   if (isRunning) return;
   const proxy = g('s_proxy'), key = g('s_apikey'), anthropicKey = g('s_anthropic');
@@ -425,7 +604,11 @@ async function runPipeline() {
         const sal = det.salary;
         let salStr = '';
         if (sal && sal.salary_exists && sal.min_salary && sal.max_salary) {
-          salStr = `$${Math.round(sal.min_salary).toLocaleString()}–$${Math.round(sal.max_salary).toLocaleString()}${sal.pay_period ? ' ' + sal.pay_period : ''}`;
+          salStr = `$${Math.round(sal.min_salary).toLocaleString()}\u2013$${Math.round(sal.max_salary).toLocaleString()}${sal.pay_period ? ' ' + sal.pay_period : ''}`;
+        }
+        // Fallback: scan job description text for salary mentions
+        if (!salStr && det.description) {
+          salStr = extractSalaryFromText(det.description);
         }
         jobData = {
           jobtitle: det.title || title, company: det.company?.name || company,
@@ -487,7 +670,7 @@ async function runPipeline() {
 
 HIGH-PROBABILITY (25-30 pts each):
 - Posted 90+ days ago: 30 pts
-- Missing salary entirely: 25 pts
+- Missing salary entirely (not in API field AND not mentioned anywhere in description): 25 pts
 - Reposted 3+ times: 25 pts
 
 HIGH SUSPICION (20 pts each):
@@ -495,7 +678,7 @@ HIGH SUSPICION (20 pts each):
 - No contact info or hiring manager: 20 pts
 
 WARNING (10 pts each):
-- "Competitive salary" with no range: 10 pts
+- Says "competitive salary" or "market rate" with no actual number anywhere in description: 10 pts
 - No direct contact methods: 10 pts
 
 Job:
@@ -504,12 +687,12 @@ Company: ${job.company}
 Posted: ${job.postingdate || 'unknown'}
 Expires: ${job.lastseendate || 'unknown'}
 Applies/Reposts: ${job.repostingcount}
-Salary: ${job.salaryrange || 'NOT PROVIDED'}
+Salary (from API): ${job.salaryrange || 'NOT PROVIDED — check description text below for any pay range mentions'}
 Contact: ${job.hiringmanageremail || 'NOT PROVIDED'}
 Location: ${job.location || 'unknown'}
 Level: ${job.joblevel || 'unknown'}
 Type: ${job.jobtype || 'unknown'}
-Description: ${(job.jobdescription || '').slice(0, 1500)}
+Description: ${(job.jobdescription || '').slice(0, 3000)}
 
 Return ONLY valid JSON, no markdown:
 {"suspicion_score":<0-100>,"ghost_job_flag":"<Active Position|Uncertain|Likely Ghost Job>","red_flags":"<comma-separated>","analysis_summary":"<one sentence>","score_breakdown":{"age_score":<0-30>,"salary_score":<0-25>,"repost_score":<0-25>,"description_score":<0-20>,"contact_score":<0-20>}}`;
